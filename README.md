@@ -77,3 +77,53 @@ packages/
 | Users | `GET/POST/PUT/DELETE /api/users` (admin only) |
 | Relations | `GET/POST/DELETE /api/relations/coaches/:id/clubs/:id`, `GET/POST/DELETE /api/relations/parents/:id/athletes/:id` |
 | Stats | `GET /api/stats` |
+
+## HIPAA Compliance — Encryption at Rest
+
+### Current State (SQLite — Development)
+
+SQLite is used for local development only. The `dev.db` file is **not encrypted**. Do not store real patient data in the development database.
+
+### Production (Azure SQL Server)
+
+The production database will be **Azure SQL Server** in a shared-tier configuration. Prisma supports SQL Server via the `sqlserver` provider.
+
+**Migration steps:**
+
+1. Update `packages/api/prisma/schema.prisma`:
+   ```prisma
+   datasource db {
+     provider = "sqlserver"
+     url      = env("DATABASE_URL")
+   }
+   ```
+
+2. Set the connection string environment variable:
+   ```
+   DATABASE_URL="sqlserver://your-server.database.windows.net:1433;database=ipt;user=your-user;password=your-password;encrypt=true;trustServerCertificate=false"
+   ```
+
+3. Regenerate and apply migrations:
+   ```bash
+   npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > init.sql
+   npx prisma db push
+   ```
+
+**Encryption at rest** — Azure SQL Server enables Transparent Data Encryption (TDE) by default using service-managed keys (AES-256). Customer-managed keys (CMK) are available via Azure Key Vault for additional control.
+
+**Video storage** — In production, migrate video uploads from local disk to **Azure Blob Storage** with server-side encryption enabled by default.
+
+### Additional Recommendations
+
+| Measure | Status | Notes |
+|---------|--------|-------|
+| Encryption at rest (DB) | ⬜ Production | Azure SQL TDE enabled by default |
+| Encryption at rest (files) | ⬜ Production | Azure Blob Storage with SSE |
+| Encryption in transit | ✅ | HTTPS required for all API traffic; Azure SQL enforces TLS |
+| Password hashing | ✅ | bcrypt with 12 rounds |
+| JWT authentication | ✅ | 24-hour token expiry |
+| Role-based access control | ✅ | Admin, Clinician, Coach, Parent roles enforced server-side |
+| Field-level encryption | ⬜ Optional | Consider for PII fields as defense-in-depth |
+| Audit logging | ⬜ Planned | Log access to PHI; Azure SQL has built-in auditing |
+| Backup encryption | ⬜ Production | Azure SQL automated backups are encrypted by default |
+| BAA with Microsoft | ⬜ Production | Required before storing PHI in Azure |

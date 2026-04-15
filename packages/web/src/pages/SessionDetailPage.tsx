@@ -16,7 +16,7 @@ export function SessionDetailPage() {
     setStep(s);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const [videos, setVideos] = useState<{ front?: Blob; side?: Blob }>({});
+  const [sessionVideos, setSessionVideos] = useState<{ id: string; viewType: string }[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -28,6 +28,11 @@ export function SessionDetailPage() {
       setSession(s);
       if (s.status === 'completed') goToStep(4); // jump to review
     });
+    loadVideos();
+  };
+
+  const loadVideos = () => {
+    api.get<{ id: string; viewType: string }[]>(`/sessions/${id}/videos`).then(setSessionVideos);
   };
 
   const handleComplete = async () => {
@@ -131,8 +136,28 @@ export function SessionDetailPage() {
             <h3>Video Capture</h3>
             <p className="text-muted">Record front and side view videos of the athlete performing movements.</p>
             <div className="video-grid">
-              <VideoCapture label="Front View" onRecorded={(blob) => setVideos({ ...videos, front: blob })} />
-              <VideoCapture label="Side View" onRecorded={(blob) => setVideos({ ...videos, side: blob })} />
+              <VideoCapture
+                label="Front View"
+                sessionId={id!}
+                viewType="front"
+                existingVideoUrl={
+                  sessionVideos.find((v) => v.viewType === 'front')
+                    ? `http://localhost:3001/api/videos/${sessionVideos.find((v) => v.viewType === 'front')!.id}/stream`
+                    : undefined
+                }
+                onUploaded={loadVideos}
+              />
+              <VideoCapture
+                label="Side View"
+                sessionId={id!}
+                viewType="side"
+                existingVideoUrl={
+                  sessionVideos.find((v) => v.viewType === 'side')
+                    ? `http://localhost:3001/api/videos/${sessionVideos.find((v) => v.viewType === 'side')!.id}/stream`
+                    : undefined
+                }
+                onUploaded={loadVideos}
+              />
             </div>
           </div>
 
@@ -231,6 +256,24 @@ export function SessionDetailPage() {
             <div className="export-buttons">
               <button className="btn-secondary" onClick={() => handleExport('pdf')}>📄 Download PDF Report</button>
               <button className="btn-secondary" onClick={() => handleExport('json')}>📋 Export JSON</button>
+            </div>
+          )}
+
+          {session.status === 'completed' && sessionVideos.length > 0 && (
+            <div className="section">
+              <h3>Recorded Videos</h3>
+              <div className="video-grid">
+                {sessionVideos.map((v) => (
+                  <VideoCapture
+                    key={v.id}
+                    label={v.viewType === 'front' ? 'Front View' : 'Side View'}
+                    sessionId={id!}
+                    viewType={v.viewType as 'front' | 'side'}
+                    existingVideoUrl={`http://localhost:3001/api/videos/${v.id}/stream`}
+                    disabled
+                  />
+                ))}
+              </div>
             </div>
           )}
 
