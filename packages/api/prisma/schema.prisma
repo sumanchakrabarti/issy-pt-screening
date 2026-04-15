@@ -1,0 +1,135 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         String        @default("clinician") // admin, clinician, coach, parent
+  clinicId     String?
+  clinic       Clinic?       @relation(fields: [clinicId], references: [id])
+  coachClubs   CoachClub[]
+  parentAthletes ParentAthlete[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Clinic {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  users     User[]
+  clubs     Club[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Club {
+  id        String      @id @default(cuid())
+  name      String
+  clinicId  String
+  clinic    Clinic      @relation(fields: [clinicId], references: [id])
+  teams     Team[]
+  coaches   CoachClub[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model Team {
+  id                String             @id @default(cuid())
+  name              String
+  clubId            String
+  club              Club               @relation(fields: [clubId], references: [id])
+  athletes          Athlete[]
+  screeningSessions ScreeningSession[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Athlete {
+  id                String             @id @default(cuid())
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime
+  gender            String
+  medicalHistory    String?
+  teamId            String
+  team              Team               @relation(fields: [teamId], references: [id])
+  screeningSessions ScreeningSession[]
+  parents           ParentAthlete[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model ScreeningSession {
+  id                    String                 @id @default(cuid())
+  athleteId             String
+  athlete               Athlete                @relation(fields: [athleteId], references: [id])
+  teamId                String
+  team                  Team                   @relation(fields: [teamId], references: [id])
+  date                  DateTime               @default(now())
+  status                String                 @default("in_progress") // in_progress, completed
+  riskScore             Float?
+  riskCategory          String?                // low, moderate, high, very_high
+  notes                 String?
+  scoreRecords          ScoreRecord[]
+  exercisePrescriptions ExercisePrescription[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+model ScoreRecord {
+  id        String           @id @default(cuid())
+  sessionId String
+  session   ScreeningSession @relation(fields: [sessionId], references: [id])
+  type      String           // movement, strength, hop
+  name      String           // e.g., "single_leg_squat", "quad_strength"
+  valueLeft Float?
+  valueRight Float?
+  score     Float?
+  notes     String?
+  createdAt DateTime         @default(now())
+}
+
+model ExercisePrescription {
+  id          String           @id @default(cuid())
+  sessionId   String
+  session     ScreeningSession @relation(fields: [sessionId], references: [id])
+  exerciseName String
+  sets        Int?
+  reps        Int?
+  duration    String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+}
+
+model CoachClub {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clubId  String
+  club    Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, clubId])
+}
+
+model ParentAthlete {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  athleteId String
+  athlete   Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, athleteId])
+}

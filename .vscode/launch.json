@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API: Debug",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "src/index.ts"],
+      "cwd": "${workspaceFolder}/packages/api",
+      "env": {
+        "PORT": "3001",
+        "JWT_SECRET": "dev-secret-change-in-production"
+      },
+      "console": "integratedTerminal",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"]
+    },
+    {
+      "name": "Web: Debug (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/packages/web/src",
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*"
+      }
+    },
+    {
+      "name": "Web: Debug (Edge)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/packages/web/src",
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*"
+      }
+    },
+    {
+      "name": "API: Seed Database",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "prisma/seed.ts"],
+      "cwd": "${workspaceFolder}/packages/api",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: API + Web",
+      "configurations": ["API: Debug", "Web: Debug (Edge)"],
+      "stopAll": true,
+      "presentation": {
+        "group": "fullstack",
+        "order": 1
+      }
+    }
+  ]
+}

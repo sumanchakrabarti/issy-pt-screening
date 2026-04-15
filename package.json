@@ -1,0 +1,16 @@
+{
+  "name": "ipt",
+  "private": true,
+  "workspaces": [
+    "packages/api",
+    "packages/web"
+  ],
+  "scripts": {
+    "api:dev": "npm run dev --workspace=packages/api",
+    "web:dev": "npm run dev --workspace=packages/web",
+    "api:build": "npm run build --workspace=packages/api",
+    "web:build": "npm run build --workspace=packages/web",
+    "db:migrate": "npm run db:migrate --workspace=packages/api",
+    "db:seed": "npm run db:seed --workspace=packages/api"
+  }
+}
