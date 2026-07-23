@@ -14,22 +14,22 @@ export const MOVEMENT_TESTS: TestDefinition[] = [
   {
     type: 'movement', name: 'single_leg_squat', label: 'Single Leg Squat',
     description: 'Assess knee valgus, trunk lean, and balance during single leg squat.',
-    inputMode: 'score', scoreLabel: 'Quality Score (0–100, higher = more risk)',
+    inputMode: 'score', scoreLabel: 'Quality Score (1–10, higher = more risk)',
   },
   {
     type: 'movement', name: 'drop_jump_landing', label: 'Drop Jump Landing',
     description: 'Observe frontal and sagittal plane knee position on landing from a box.',
-    inputMode: 'score', scoreLabel: 'Quality Score (0–100, higher = more risk)',
+    inputMode: 'score', scoreLabel: 'Quality Score (1–10, higher = more risk)',
   },
   {
     type: 'movement', name: 'forward_lunge', label: 'Forward Lunge',
     description: 'Evaluate trunk, hip, knee, and ankle alignment during forward lunge.',
-    inputMode: 'score', scoreLabel: 'Quality Score (0–100, higher = more risk)',
+    inputMode: 'score', scoreLabel: 'Quality Score (1–10, higher = more risk)',
   },
   {
     type: 'movement', name: 'lateral_step_down', label: 'Lateral Step Down',
     description: 'Assess pelvic drop, knee valgus, and hip control on step down.',
-    inputMode: 'score', scoreLabel: 'Quality Score (0–100, higher = more risk)',
+    inputMode: 'score', scoreLabel: 'Quality Score (1–10, higher = more risk)',
   },
 ];
 

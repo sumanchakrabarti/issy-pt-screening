@@ -111,8 +111,21 @@ export function ScoringPanel({ tests, sessionId, existingScores, onComplete }: P
 
               {(test.inputMode === 'score' || test.inputMode === 'both') && (
                 <div className="form-group">
-                  <label>{test.scoreLabel || 'Score (0–100)'}</label>
-                  <input type="number" min="0" max="100" value={data.score} onChange={(e) => updateScore(test.name, 'score', e.target.value)} />
+                  <label>{test.scoreLabel || 'Score (1–10)'}</label>
+                  <div className="radio-score-group">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
+                      <label key={val} className={`radio-score-option${data.score === String(val) ? ' selected' : ''}`}>
+                        <input
+                          type="radio"
+                          name={`score-${test.name}`}
+                          value={val}
+                          checked={data.score === String(val)}
+                          onChange={(e) => updateScore(test.name, 'score', e.target.value)}
+                        />
+                        <span>{val}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               )}
 

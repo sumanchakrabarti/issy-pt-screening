@@ -22,9 +22,9 @@ export function calculateRisk(scores: ScoreRecord[]): RiskResult {
   let count = 0;
 
   for (const record of scores) {
-    // Movement scores contribute directly
+    // Movement scores are on a 1–10 scale; scale to 0–100 for risk calculation
     if (record.score !== null) {
-      totalScore += record.score;
+      totalScore += record.score * 10;
       count++;
     }
 
