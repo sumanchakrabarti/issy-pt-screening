@@ -16,7 +16,7 @@ reportRouter.get('/sessions/:id/pdf', async (req, res: Response) => {
         athlete: true,
         team: { include: { club: true } },
         scoreRecords: true,
-        exercisePrescriptions: true,
+        exercisePrescriptions: { include: { exercise: true } },
       },
     });
     if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
@@ -42,7 +42,7 @@ reportRouter.get('/sessions/:id/export', async (req, res: Response) => {
       athlete: true,
       team: { include: { club: true } },
       scoreRecords: true,
-      exercisePrescriptions: true,
+      exercisePrescriptions: { include: { exercise: true } },
     },
   });
   if (!session) { res.status(404).json({ error: 'Session not found' }); return; }

@@ -1,11 +1,11 @@
 import PDFDocument from 'pdfkit';
-import { ScreeningSession, Athlete, Team, Club, ScoreRecord, ExercisePrescription } from '@prisma/client';
+import { ScreeningSession, Athlete, Team, Club, ScoreRecord, ExercisePrescription, Exercise } from '@prisma/client';
 
 type FullSession = ScreeningSession & {
   athlete: Athlete;
   team: Team & { club: Club };
   scoreRecords: ScoreRecord[];
-  exercisePrescriptions: ExercisePrescription[];
+  exercisePrescriptions: (ExercisePrescription & { exercise: Exercise })[];
 };
 
 const COLORS = {
@@ -141,7 +141,7 @@ export function generateAthleteReport(session: FullSession): PDFKit.PDFDocument 
 
     for (const p of prescriptions) {
       if (doc.y > 700) { doc.addPage(); doc.x = 50; }
-      doc.fontSize(10).font('Helvetica-Bold').text(p.exerciseName, 50);
+      doc.fontSize(10).font('Helvetica-Bold').text(p.exercise.name, 50);
       const details: string[] = [];
       if (p.sets) details.push(`${p.sets} sets`);
       if (p.reps) details.push(`${p.reps} reps`);

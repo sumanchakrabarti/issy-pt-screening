@@ -105,12 +105,89 @@ model ExercisePrescription {
   id          String           @id @default(cuid())
   sessionId   String
   session     ScreeningSession @relation(fields: [sessionId], references: [id])
-  exerciseName String
+  // Prescriptions now reference the exercise catalog directly.
+  exerciseId  String
+  exercise    Exercise         @relation(fields: [exerciseId], references: [id])
+  // Per-prescription overrides of the exercise's catalog defaults.
   sets        Int?
   reps        Int?
   duration    String?
   notes       String?
   createdAt   DateTime         @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Exercise library / catalog
+// A reusable, searchable set of exercises a clinician can browse and prescribe.
+// Tagged with muscle and ligament groups (many-to-many) and linked to videos.
+// ---------------------------------------------------------------------------
+
+model Exercise {
+  id              String                  @id @default(cuid())
+  name            String                  @unique
+  description     String?
+  instructions    String?                 // step-by-step cues for the athlete
+  category        String                  // strengthening, balance, plyometric, mobility, stretching, proprioception
+  bodyRegion      String                  @default("lower_leg") // lower_leg, ankle, foot, knee, hip, thigh
+  difficulty      String                  @default("beginner")  // beginner, intermediate, advanced
+  defaultSets     Int?
+  defaultReps     Int?
+  defaultDuration String?
+  equipment       String?                 // e.g., "resistance band", "bodyweight", "box"
+  muscleGroups    ExerciseMuscleGroup[]
+  ligamentGroups  ExerciseLigamentGroup[]
+  videos          ExerciseVideo[]
+  prescriptions   ExercisePrescription[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+}
+
+model MuscleGroup {
+  id        String                @id @default(cuid())
+  name      String                @unique // e.g., "Gastrocnemius", "Soleus", "Tibialis Anterior"
+  region    String?               // e.g., lower_leg, thigh, hip
+  exercises ExerciseMuscleGroup[]
+  createdAt DateTime              @default(now())
+}
+
+model LigamentGroup {
+  id        String                  @id @default(cuid())
+  name      String                  @unique // e.g., "ATFL", "Calcaneofibular Ligament", "Deltoid Ligament"
+  joint     String?                 // e.g., ankle, knee, foot
+  exercises ExerciseLigamentGroup[]
+  createdAt DateTime                @default(now())
+}
+
+// Explicit join table (Exercise <-> MuscleGroup). Explicit tables port cleanly
+// to Azure SQL Server and leave room for future per-tag metadata.
+model ExerciseMuscleGroup {
+  exerciseId    String
+  exercise      Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  muscleGroupId String
+  muscleGroup   MuscleGroup @relation(fields: [muscleGroupId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, muscleGroupId])
+}
+
+// Explicit join table (Exercise <-> LigamentGroup).
+model ExerciseLigamentGroup {
+  exerciseId      String
+  exercise        Exercise      @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  ligamentGroupId String
+  ligamentGroup   LigamentGroup @relation(fields: [ligamentGroupId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, ligamentGroupId])
+}
+
+model ExerciseVideo {
+  id              String   @id @default(cuid())
+  exerciseId      String
+  exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  url             String
+  title           String?
+  source          String?  // youtube, vimeo, upload
+  durationSeconds Int?
+  createdAt       DateTime @default(now())
 }
 
 model Video {

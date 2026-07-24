@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { API_BASE } from '../config';
 import { ScoringPanel } from '../components/ScoringPanel';
 import { VideoCapture } from '../components/VideoCapture';
 import { MOVEMENT_TESTS, STRENGTH_TESTS, HOP_TESTS, SCREENING_STEPS } from '../services/screeningTests';
@@ -50,7 +51,7 @@ export function SessionDetailPage() {
 
   const handleExport = (format: 'pdf' | 'json') => {
     const token = localStorage.getItem('token');
-    const url = `http://localhost:3001/api/reports/sessions/${id}/${format === 'pdf' ? 'pdf' : 'export'}`;
+    const url = `${API_BASE}/reports/sessions/${id}/${format === 'pdf' ? 'pdf' : 'export'}`;
     const link = document.createElement('a');
     link.href = `${url}?token=${token}`;
     // Use fetch with auth header for proper download
@@ -322,7 +323,7 @@ export function SessionDetailPage() {
                 <tbody>
                   {prescriptions.map((p) => (
                     <tr key={p.id}>
-                      <td><strong>{p.exerciseName}</strong></td>
+                      <td><strong>{p.exercise?.name ?? '—'}</strong></td>
                       <td>{p.sets ?? '—'}</td>
                       <td>{p.reps ?? '—'}</td>
                       <td>{p.duration || '—'}</td>

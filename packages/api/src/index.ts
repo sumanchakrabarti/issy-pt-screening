@@ -10,6 +10,7 @@ import { reportRouter } from './routes/reports';
 import { userRouter, statsRouter } from './routes/users';
 import { relationRouter } from './routes/relations';
 import { videoRouter } from './routes/videos';
+import { exerciseRouter } from './routes/exercises';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -33,6 +34,7 @@ app.use('/api/reports', reportRouter);
 app.use('/api/users', userRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/relations', relationRouter);
+app.use('/api/exercises', exerciseRouter);
 app.use('/api', videoRouter);
 
 app.listen(PORT, () => {

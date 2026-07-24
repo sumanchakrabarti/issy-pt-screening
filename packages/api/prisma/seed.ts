@@ -1,10 +1,20 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { seedExerciseCatalog } from './exerciseCatalog';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('Seeding database...');
+
+  // Seed the reusable exercise catalog (muscle/ligament groups, exercises, videos).
+  // Returns a name -> id map used to link session prescriptions below.
+  const exerciseId = await seedExerciseCatalog(prisma);
+  const rx = (name: string) => {
+    const id = exerciseId.get(name);
+    if (!id) throw new Error(`Seed error: exercise "${name}" not found in catalog`);
+    return id;
+  };
 
   // Create admin user
   const adminHash = await bcrypt.hash('admin123!', 12);
@@ -132,10 +142,10 @@ async function main() {
   });
   await prisma.exercisePrescription.createMany({
     data: [
-      { sessionId: session2.id, exerciseName: 'Goblet Squat', sets: 3, reps: 10, notes: 'Focus on knee tracking over toes' },
-      { sessionId: session2.id, exerciseName: 'Single Leg Squat to Box', sets: 3, reps: 6, notes: 'Control valgus collapse' },
-      { sessionId: session2.id, exerciseName: 'Single Leg Press', sets: 3, reps: 10, notes: 'Focus on weaker side' },
-      { sessionId: session2.id, exerciseName: 'Clamshell with Band', sets: 3, reps: 15, notes: 'External rotation strengthening' },
+      { sessionId: session2.id, exerciseId: rx('Goblet Squat'), sets: 3, reps: 10, notes: 'Focus on knee tracking over toes' },
+      { sessionId: session2.id, exerciseId: rx('Single Leg Squat to Box'), sets: 3, reps: 6, notes: 'Control valgus collapse' },
+      { sessionId: session2.id, exerciseId: rx('Single Leg Press'), sets: 3, reps: 10, notes: 'Focus on weaker side' },
+      { sessionId: session2.id, exerciseId: rx('Clamshell with Band'), sets: 3, reps: 15, notes: 'External rotation strengthening' },
     ],
   });
 
@@ -160,12 +170,12 @@ async function main() {
   });
   await prisma.exercisePrescription.createMany({
     data: [
-      { sessionId: session3.id, exerciseName: 'Goblet Squat', sets: 3, reps: 12, notes: 'Focus on knee tracking over toes' },
-      { sessionId: session3.id, exerciseName: 'Single Leg Squat to Box', sets: 3, reps: 7, notes: 'Control valgus collapse' },
-      { sessionId: session3.id, exerciseName: 'Box Drop Landing', sets: 3, reps: 6, notes: 'Soft landing, knees aligned' },
-      { sessionId: session3.id, exerciseName: 'Nordic Hamstring Curl', sets: 3, reps: 6, notes: 'Eccentric control' },
-      { sessionId: session3.id, exerciseName: 'Single Leg Press', sets: 3, reps: 12, notes: 'Focus on weaker side' },
-      { sessionId: session3.id, exerciseName: 'Single Leg Hop Progression', sets: 3, reps: 8, notes: 'Start with small hops, progress distance' },
+      { sessionId: session3.id, exerciseId: rx('Goblet Squat'), sets: 3, reps: 12, notes: 'Focus on knee tracking over toes' },
+      { sessionId: session3.id, exerciseId: rx('Single Leg Squat to Box'), sets: 3, reps: 7, notes: 'Control valgus collapse' },
+      { sessionId: session3.id, exerciseId: rx('Box Drop Landing'), sets: 3, reps: 6, notes: 'Soft landing, knees aligned' },
+      { sessionId: session3.id, exerciseId: rx('Nordic Hamstring Curl'), sets: 3, reps: 6, notes: 'Eccentric control' },
+      { sessionId: session3.id, exerciseId: rx('Single Leg Press'), sets: 3, reps: 12, notes: 'Focus on weaker side' },
+      { sessionId: session3.id, exerciseId: rx('Single Leg Hop Progression'), sets: 3, reps: 8, notes: 'Start with small hops, progress distance' },
     ],
   });
 
@@ -192,15 +202,15 @@ async function main() {
   });
   await prisma.exercisePrescription.createMany({
     data: [
-      { sessionId: session4.id, exerciseName: 'Goblet Squat', sets: 4, reps: 12, notes: 'Focus on knee tracking over toes' },
-      { sessionId: session4.id, exerciseName: 'Single Leg Squat to Box', sets: 4, reps: 7, notes: 'Control valgus collapse' },
-      { sessionId: session4.id, exerciseName: 'Box Drop Landing', sets: 4, reps: 6, notes: 'Soft landing, knees aligned' },
-      { sessionId: session4.id, exerciseName: 'Single Leg Press', sets: 4, reps: 12, notes: 'Focus on weaker (right) side' },
-      { sessionId: session4.id, exerciseName: 'Nordic Hamstring Curl', sets: 4, reps: 6, notes: 'Eccentric control' },
-      { sessionId: session4.id, exerciseName: 'Single Leg Romanian Deadlift', sets: 4, reps: 12, notes: 'Hamstring and glute activation' },
-      { sessionId: session4.id, exerciseName: 'Clamshell with Band', sets: 4, reps: 15, notes: 'External rotation strengthening' },
-      { sessionId: session4.id, exerciseName: 'Single Leg Hop Progression', sets: 4, reps: 8, notes: 'Start with small hops, progress distance' },
-      { sessionId: session4.id, exerciseName: 'Lateral Bound and Stick', sets: 4, reps: 6, notes: 'Control landing, stick for 3s' },
+      { sessionId: session4.id, exerciseId: rx('Goblet Squat'), sets: 4, reps: 12, notes: 'Focus on knee tracking over toes' },
+      { sessionId: session4.id, exerciseId: rx('Single Leg Squat to Box'), sets: 4, reps: 7, notes: 'Control valgus collapse' },
+      { sessionId: session4.id, exerciseId: rx('Box Drop Landing'), sets: 4, reps: 6, notes: 'Soft landing, knees aligned' },
+      { sessionId: session4.id, exerciseId: rx('Single Leg Press'), sets: 4, reps: 12, notes: 'Focus on weaker (right) side' },
+      { sessionId: session4.id, exerciseId: rx('Nordic Hamstring Curl'), sets: 4, reps: 6, notes: 'Eccentric control' },
+      { sessionId: session4.id, exerciseId: rx('Single Leg Romanian Deadlift'), sets: 4, reps: 12, notes: 'Hamstring and glute activation' },
+      { sessionId: session4.id, exerciseId: rx('Clamshell with Band'), sets: 4, reps: 15, notes: 'External rotation strengthening' },
+      { sessionId: session4.id, exerciseId: rx('Single Leg Hop Progression'), sets: 4, reps: 8, notes: 'Start with small hops, progress distance' },
+      { sessionId: session4.id, exerciseId: rx('Lateral Bound and Stick'), sets: 4, reps: 6, notes: 'Control landing, stick for 3s' },
     ],
   });
 

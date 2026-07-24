@@ -72,11 +72,50 @@ export interface ScoreRecord {
 export interface ExercisePrescription {
   id: string;
   sessionId: string;
-  exerciseName: string;
+  exerciseId: string;
+  exercise?: Exercise;
   sets?: number;
   reps?: number;
   duration?: string;
   notes?: string;
+}
+
+export interface Exercise {
+  id: string;
+  name: string;
+  description?: string;
+  instructions?: string;
+  category: string;
+  bodyRegion: string;
+  difficulty: string;
+  defaultSets?: number;
+  defaultReps?: number;
+  defaultDuration?: string;
+  equipment?: string;
+  muscleGroups?: MuscleGroup[];
+  ligamentGroups?: LigamentGroup[];
+  videos?: ExerciseVideo[];
+}
+
+export interface MuscleGroup {
+  id: string;
+  name: string;
+  region?: string;
+}
+
+export interface LigamentGroup {
+  id: string;
+  name: string;
+  joint?: string;
+}
+
+export interface ExerciseVideo {
+  id: string;
+  exerciseId: string;
+  url: string;
+  title?: string;
+  source?: string;
+  durationSeconds?: number;
 }
 
 export interface AuthResponse {

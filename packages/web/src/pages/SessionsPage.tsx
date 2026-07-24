@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
+import { API_BASE } from '../config';
 import type { ScreeningSession, Athlete, Team } from '../types';
 
 export function SessionsPage() {
@@ -36,7 +37,7 @@ export function SessionsPage() {
 
   const handleExportCSV = () => {
     const token = localStorage.getItem('token');
-    fetch('http://localhost:3001/api/reports/sessions/export/csv', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE}/reports/sessions/export/csv`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.blob())
       .then((blob) => {
         const url = URL.createObjectURL(blob);

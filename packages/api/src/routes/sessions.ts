@@ -58,7 +58,7 @@ sessionRouter.get('/:id', async (req, res: Response) => {
       athlete: true,
       team: { include: { club: true } },
       scoreRecords: true,
-      exercisePrescriptions: true,
+      exercisePrescriptions: { include: { exercise: true } },
     },
   });
   if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
@@ -105,19 +105,43 @@ sessionRouter.post('/:id/complete', async (req, res: Response) => {
 
     // Generate exercise prescriptions based on scores
     const prescribedExercises = generatePrescription(session.scoreRecords, riskCategory);
-    
+
     // Delete any existing prescriptions and create new ones
     await prisma.exercisePrescription.deleteMany({ where: { sessionId } });
-    if (prescribedExercises.length > 0) {
-      await prisma.exercisePrescription.createMany({
-        data: prescribedExercises.map((ex) => ({ ...ex, sessionId })),
+    for (const ex of prescribedExercises) {
+      // Resolve the generated exercise to a catalog entry. Upsert acts as a
+      // safety net so completion never fails if a name isn't seeded yet.
+      const exercise = await prisma.exercise.upsert({
+        where: { name: ex.exerciseName },
+        update: {},
+        create: {
+          name: ex.exerciseName,
+          category: 'strengthening',
+          defaultSets: ex.sets,
+          defaultReps: ex.reps,
+          defaultDuration: ex.duration,
+        },
+      });
+      await prisma.exercisePrescription.create({
+        data: {
+          sessionId,
+          exerciseId: exercise.id,
+          sets: ex.sets,
+          reps: ex.reps,
+          duration: ex.duration,
+          notes: ex.notes,
+        },
       });
     }
 
     const updated = await prisma.screeningSession.update({
       where: { id: sessionId },
       data: { status: 'completed', riskScore, riskCategory },
-      include: { scoreRecords: true, exercisePrescriptions: true, athlete: true },
+      include: {
+        scoreRecords: true,
+        exercisePrescriptions: { include: { exercise: true } },
+        athlete: true,
+      },
     });
     res.json(updated);
   } catch (err) {

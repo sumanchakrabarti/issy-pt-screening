@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { API_BASE } from '../config';
 
 interface Props {
   label: string;
@@ -24,7 +25,7 @@ export function VideoCapture({ label, sessionId, viewType, existingVideoUrl, onU
     formData.append('viewType', viewType);
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:3001/api/sessions/${sessionId}/videos`, {
+      const res = await fetch(`${API_BASE}/sessions/${sessionId}/videos`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
