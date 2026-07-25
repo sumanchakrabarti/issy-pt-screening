@@ -50,7 +50,7 @@ export interface ScreeningSession {
   teamId: string;
   team?: Team;
   date: string;
-  status: 'in_progress' | 'completed';
+  status: 'in_progress' | 'needs_review' | 'completed' | 'consultation_requested' | 'archived';
   riskScore?: number;
   riskCategory?: 'low' | 'moderate' | 'high' | 'very_high';
   notes?: string;

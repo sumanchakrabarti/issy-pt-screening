@@ -104,12 +104,12 @@ async function main() {
   const [emma, sophia, olivia, ava] = athletes;
   await prisma.parentAthlete.create({ data: { userId: parent.id, athleteId: emma.id } });
 
-  // Session 1: Emma — completed, low risk
+  // Session 1: Emma — scored, awaiting clinician review + exercise selection
   const session1 = await prisma.screeningSession.create({
     data: {
       athleteId: emma.id, teamId: u14.id,
       date: new Date('2026-03-10'),
-      status: 'completed', riskScore: 18.5, riskCategory: 'low',
+      status: 'needs_review', riskScore: 18.5, riskCategory: 'low',
     },
   });
   await prisma.scoreRecord.createMany({
@@ -231,7 +231,7 @@ async function main() {
     ],
   });
 
-  console.log(`Seeded: 5 screening sessions (4 completed, 1 in-progress), scores, and prescriptions`);
+  console.log(`Seeded: 5 screening sessions (3 completed, 1 needs review, 1 in-progress), scores, and prescriptions`);
 }
 
 main()

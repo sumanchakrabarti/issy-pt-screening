@@ -4,7 +4,6 @@ import prisma from '../db';
 import { param } from '../middleware/params';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { calculateRisk } from '../services/riskCalculation';
-import { generatePrescription } from '../services/exercisePrescription';
 
 export const sessionRouter = Router();
 sessionRouter.use(authenticate);
@@ -46,9 +45,11 @@ sessionRouter.get('/', async (req, res: Response) => {
   const { role, userId } = (req as AuthRequest).user!;
   const athleteId = typeof req.query.athleteId === 'string' ? req.query.athleteId : undefined;
   const teamId = typeof req.query.teamId === 'string' ? req.query.teamId : undefined;
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
   const where: Record<string, unknown> = {};
   if (athleteId) where.athleteId = athleteId;
   if (teamId) where.teamId = teamId;
+  if (status) where.status = status;
 
   if (role === 'coach') {
     const coachClubs = await prisma.coachClub.findMany({ where: { userId }, select: { clubId: true } });
@@ -108,7 +109,10 @@ sessionRouter.post('/:id/scores', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Calculate risk and complete session
+// Calculate risk and move the session into the review queue.
+// Prescriptions are NOT generated here — they are a result of the screening that
+// a clinician selects during review. This only scores the screening and flags it
+// as needing review.
 sessionRouter.post('/:id/complete', async (req, res: Response) => {
   try {
     const sessionId = param(req, 'id');
@@ -120,43 +124,9 @@ sessionRouter.post('/:id/complete', async (req, res: Response) => {
 
     const { riskScore, riskCategory } = calculateRisk(session.scoreRecords);
 
-    // Only auto-generate prescriptions if the session has none yet, so that
-    // manual edits made by a clinician are never overwritten on re-completion.
-    const existingCount = await prisma.exercisePrescription.count({ where: { sessionId } });
-    if (existingCount === 0) {
-      const prescribedExercises = generatePrescription(session.scoreRecords, riskCategory);
-      for (const ex of prescribedExercises) {
-        // Resolve the generated exercise to a catalog entry. Upsert acts as a
-        // safety net so completion never fails if a name isn't seeded yet.
-        const exercise = await prisma.exercise.upsert({
-          where: { name: ex.exercise.name },
-          update: {},
-          create: {
-            name: ex.exercise.name,
-            category: ex.exercise.category,
-            bodyRegion: ex.exercise.bodyRegion,
-            difficulty: ex.exercise.difficulty,
-            defaultSets: ex.sets,
-            defaultReps: ex.reps,
-            defaultDuration: ex.duration,
-          },
-        });
-        await prisma.exercisePrescription.create({
-          data: {
-            sessionId,
-            exerciseId: exercise.id,
-            sets: ex.sets,
-            reps: ex.reps,
-            duration: ex.duration,
-            notes: ex.notes,
-          },
-        });
-      }
-    }
-
     const updated = await prisma.screeningSession.update({
       where: { id: sessionId },
-      data: { status: 'completed', riskScore, riskCategory },
+      data: { status: 'needs_review', riskScore, riskCategory },
       include: {
         scoreRecords: true,
         exercisePrescriptions: { include: { exercise: true } },
@@ -166,6 +136,99 @@ sessionRouter.post('/:id/complete', async (req, res: Response) => {
     res.json(updated);
   } catch (err) {
     console.error('Complete session error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Finalize a reviewed screening. Only a clinician/admin can sign off, marking the
+// screening (and its selected exercise prescriptions) as complete.
+sessionRouter.post('/:id/finalize', requireRole('admin', 'clinician'), async (req, res: Response) => {
+  try {
+    const sessionId = param(req, 'id');
+    const session = await prisma.screeningSession.findUnique({ where: { id: sessionId } });
+    if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
+    if (session.status === 'in_progress') {
+      res.status(400).json({ error: 'Screening must be scored before it can be reviewed' });
+      return;
+    }
+
+    const updated = await prisma.screeningSession.update({
+      where: { id: sessionId },
+      data: { status: 'completed' },
+      include: {
+        scoreRecords: true,
+        exercisePrescriptions: { include: { exercise: true } },
+        athlete: true,
+      },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error('Finalize session error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Post-completion actions available to the athlete/family after a screening has
+// been finalized. From a `completed` screening the athlete can either request a
+// consultation with a clinician or archive it (no further follow-up needed).
+const sessionInclude = {
+  scoreRecords: true,
+  exercisePrescriptions: { include: { exercise: true } },
+  athlete: true,
+} as const;
+
+// Athlete/family requests a consultation on a completed screening.
+sessionRouter.post('/:id/request-consultation', async (req, res: Response) => {
+  try {
+    const sessionId = param(req, 'id');
+    const session = await prisma.screeningSession.findUnique({ where: { id: sessionId } });
+    if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
+    if (session.status !== 'completed') {
+      res.status(400).json({ error: 'A consultation can only be requested for a completed screening' });
+      return;
+    }
+
+    const updated = await prisma.screeningSession.update({
+      where: { id: sessionId },
+      data: { status: 'consultation_requested' },
+      include: sessionInclude,
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error('Request consultation error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Archive a screening once no further follow-up is needed. This is the terminal
+// state. Anyone can archive a `completed` screening; archiving one that is in the
+// `consultation_requested` state requires a clinician/admin (they resolve the request).
+sessionRouter.post('/:id/archive', async (req, res: Response) => {
+  try {
+    const sessionId = param(req, 'id');
+    const session = await prisma.screeningSession.findUnique({ where: { id: sessionId } });
+    if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
+    if (session.status !== 'completed' && session.status !== 'consultation_requested') {
+      res.status(400).json({ error: 'Only a completed or consultation-requested screening can be archived' });
+      return;
+    }
+
+    if (session.status === 'consultation_requested') {
+      const { role } = (req as AuthRequest).user!;
+      if (role !== 'admin' && role !== 'clinician') {
+        res.status(403).json({ error: 'Only a clinician or admin can archive a screening with a requested consultation' });
+        return;
+      }
+    }
+
+    const updated = await prisma.screeningSession.update({
+      where: { id: sessionId },
+      data: { status: 'archived' },
+      include: sessionInclude,
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error('Archive session error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -37,7 +37,7 @@ export function ClubDetailPage() {
   const handleDelete = async () => {
     if (!confirm('Delete this club and all its teams?')) return;
     await api.delete(`/clubs/${id}`);
-    navigate('/clubs');
+    navigate('/settings/clubs');
   };
 
   const handleAddTeam = async () => {
@@ -53,7 +53,7 @@ export function ClubDetailPage() {
   return (
     <div>
       <div className="breadcrumb">
-        <Link to="/clubs">Clubs</Link> / {club.name}
+        <Link to="/settings/clubs">Clubs</Link> / {club.name}
       </div>
 
       <div className="detail-header">

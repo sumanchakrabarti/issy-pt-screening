@@ -123,6 +123,8 @@
 /* Badges */
 .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
 .badge-gray { background: #e2e8f0; color: #475569; }
+.badge-amber { background: #fef3c7; color: #b45309; }
+.badge-blue { background: #dbeafe; color: #1d4ed8; }
 
 /* Loading */
 .loading { display: flex; justify-content: center; align-items: center; min-height: 50vh; color: #64748b; }

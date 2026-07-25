@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Athlete, ScreeningSession, Team } from '../types';
+import { statusLabel, statusBadgeClass } from '../services/sessionStatus';
 
 export function AthleteDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -201,7 +202,7 @@ export function AthleteDetailPage() {
               {sessions.map((s) => (
                 <tr key={s.id}>
                   <td><Link to={`/sessions/${s.id}`}>{new Date(s.date).toLocaleDateString()}</Link></td>
-                  <td><span className={`badge ${s.status === 'completed' ? 'badge-green' : 'badge-gray'}`}>{s.status}</span></td>
+                  <td><span className={`badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span></td>
                   <td>{riskBadge(s.riskCategory, s.riskScore)}</td>
                   <td><button className="btn-danger" onClick={() => handleDeleteSession(s.id)}>Delete</button></td>
                 </tr>

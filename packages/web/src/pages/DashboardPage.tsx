@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import type { ScreeningSession } from '../types';
+import { statusLabel, statusBadgeClass } from '../services/sessionStatus';
 
 interface Stats {
-  counts: { users: number; clinics: number; clubs: number; teams: number; athletes: number; sessions: number; completedSessions: number };
+  counts: { users: number; clinics: number; clubs: number; teams: number; athletes: number; sessions: number; completedSessions: number; needsReview: number };
   riskDistribution: { category: string; count: number }[];
   recentSessions: ScreeningSession[];
+  reviewSessions: ScreeningSession[];
 }
 
 export function DashboardPage() {
@@ -18,9 +20,10 @@ export function DashboardPage() {
     api.get<Stats>('/stats').then(setStats).catch(() => {
       // Fallback if stats endpoint not available yet
       setStats({
-        counts: { users: 0, clinics: 0, clubs: 0, teams: 0, athletes: 0, sessions: 0, completedSessions: 0 },
+        counts: { users: 0, clinics: 0, clubs: 0, teams: 0, athletes: 0, sessions: 0, completedSessions: 0, needsReview: 0 },
         riskDistribution: [],
         recentSessions: [],
+        reviewSessions: [],
       });
     });
   }, []);
@@ -39,7 +42,7 @@ export function DashboardPage() {
 
   if (!stats) return <div className="loading">Loading...</div>;
 
-  const { counts, riskDistribution, recentSessions } = stats;
+  const { counts, riskDistribution, recentSessions, reviewSessions } = stats;
   const screeningsByDay = Array.from({ length: 7 }, (_, offset) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - offset));
@@ -62,7 +65,7 @@ export function DashboardPage() {
         <div className="dashboard-panel">
           <div className="dashboard-panel-header">
             <div>
-              <h2>Risk Distribution</h2>
+              <h2>Athlete Risk Distribution</h2>
               <p className="dashboard-panel-subtitle">Completed screenings by risk category.</p>
             </div>
             <span className="dashboard-panel-pill">{counts.completedSessions} completed</span>
@@ -117,6 +120,44 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* Screenings needing review */}
+      <div className="section">
+        <div className="dashboard-panel-header">
+          <div>
+            <h2>Screenings Needing Review</h2>
+            <p className="dashboard-panel-subtitle">Scored screenings awaiting clinician review, plus completed screenings with a requested consultation.</p>
+          </div>
+          <span className="dashboard-panel-pill">{counts.needsReview} pending</span>
+        </div>
+        {reviewSessions.length === 0 ? (
+          <p className="empty-state">Nothing to review right now. 🎉</p>
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Athlete</th><th>Team</th><th>Date</th><th>Risk</th><th></th></tr></thead>
+            <tbody>
+              {reviewSessions.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <Link to={`/sessions/${s.id}`}>
+                      {s.athlete ? `${s.athlete.firstName} ${s.athlete.lastName}` : s.athleteId}
+                    </Link>
+                  </td>
+                  <td>{s.team?.name || '—'}</td>
+                  <td>{new Date(s.date).toLocaleDateString()}</td>
+                  <td>
+                    <span style={{ color: riskColor(s.riskCategory), fontWeight: 'bold' }}>
+                      {s.riskCategory ? riskLabel(s.riskCategory) : '—'}
+                    </span>
+                    {s.riskScore != null && ` (${s.riskScore})`}
+                  </td>
+                  <td><Link to={`/sessions/${s.id}`} className="btn-secondary" style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}>Review →</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
       {/* Recent Screenings */}
       <div className="section">
         <h2>Recent Screenings</h2>
@@ -134,7 +175,7 @@ export function DashboardPage() {
                     </Link>
                   </td>
                   <td>{new Date(s.date).toLocaleDateString()}</td>
-                  <td>{s.status}</td>
+                  <td><span className={`badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span></td>
                   <td>
                     <span style={{ color: riskColor(s.riskCategory), fontWeight: 'bold' }}>
                       {s.riskCategory ? riskLabel(s.riskCategory) : '—'}

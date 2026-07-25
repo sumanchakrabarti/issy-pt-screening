@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ScoringPanel } from '../components/ScoringPanel';
 import { VideoCapture } from '../components/VideoCapture';
 import { MOVEMENT_TESTS, STRENGTH_TESTS, HOP_TESTS, SCREENING_STEPS } from '../services/screeningTests';
+import { statusLabel, statusBadgeClass } from '../services/sessionStatus';
 import type { ScreeningSession, Exercise, ExercisePrescription } from '../types';
 
 export function SessionDetailPage() {
@@ -41,7 +42,7 @@ export function SessionDetailPage() {
   const loadSession = () => {
     api.get<ScreeningSession>(`/sessions/${id}`).then((s) => {
       setSession(s);
-      if (s.status === 'completed') goToStep(4); // jump to review
+      if (s.status !== 'in_progress') goToStep(4); // jump to review/results
     });
     loadVideos();
   };
@@ -53,6 +54,30 @@ export function SessionDetailPage() {
   const handleComplete = async () => {
     if (!id) return;
     const updated = await api.post<ScreeningSession>(`/sessions/${id}/complete`, {});
+    setSession(updated);
+    setStep(4);
+  };
+
+  const handleFinalize = async () => {
+    if (!id) return;
+    if (!confirm('Finalize this screening? This marks the review complete with the selected prescriptions.')) return;
+    const updated = await api.post<ScreeningSession>(`/sessions/${id}/finalize`, {});
+    setSession(updated);
+    setStep(4);
+  };
+
+  const handleRequestConsultation = async () => {
+    if (!id) return;
+    if (!confirm('Request a consultation with a clinician about this screening?')) return;
+    const updated = await api.post<ScreeningSession>(`/sessions/${id}/request-consultation`, {});
+    setSession(updated);
+    setStep(4);
+  };
+
+  const handleArchive = async () => {
+    if (!id) return;
+    if (!confirm('Archive this screening? No further follow-up will be requested.')) return;
+    const updated = await api.post<ScreeningSession>(`/sessions/${id}/archive`, {});
     setSession(updated);
     setStep(4);
   };
@@ -132,6 +157,9 @@ export function SessionDetailPage() {
   const scores = session.scoreRecords || [];
   const prescriptions = session.exercisePrescriptions || [];
   const currentStep = SCREENING_STEPS[step];
+  // Post-completion states share the same read-only results view; the athlete/family
+  // can act on a `completed` screening by requesting a consultation or archiving it.
+  const isPostCompletion = ['completed', 'consultation_requested', 'archived'].includes(session.status);
 
   return (
     <div>
@@ -144,7 +172,7 @@ export function SessionDetailPage() {
       </div>
 
       {/* Step indicator */}
-      {session.status !== 'completed' && (
+      {session.status === 'in_progress' && (
         <div className="wizard-steps">
           {SCREENING_STEPS.map((s, i) => (
             <button
@@ -171,7 +199,7 @@ export function SessionDetailPage() {
                 <dd>{session.athlete ? `${session.athlete.firstName} ${session.athlete.lastName}` : '—'}</dd>
                 <dt>Team</dt><dd>{session.team?.name || '—'}</dd>
                 <dt>Date</dt><dd>{new Date(session.date).toLocaleDateString()}</dd>
-                <dt>Status</dt><dd><span className={`badge ${session.status === 'completed' ? 'badge-green' : 'badge-gray'}`}>{session.status}</span></dd>
+                <dt>Status</dt><dd><span className={`badge ${statusBadgeClass(session.status)}`}>{statusLabel(session.status)}</span></dd>
               </dl>
             </div>
           </div>
@@ -270,7 +298,7 @@ export function SessionDetailPage() {
         <div>
           <h2>Review & Results</h2>
 
-          {session.status === 'completed' && (
+          {session.status !== 'in_progress' && (
             <div className="detail-cards">
               <div className="info-card risk-card" style={{ borderColor: riskColor(session.riskCategory) }}>
                 <h3>Risk Assessment</h3>
@@ -289,6 +317,7 @@ export function SessionDetailPage() {
                 <dl>
                   <dt>Athlete</dt><dd>{session.athlete ? `${session.athlete.firstName} ${session.athlete.lastName}` : '—'}</dd>
                   <dt>Date</dt><dd>{new Date(session.date).toLocaleDateString()}</dd>
+                  <dt>Status</dt><dd><span className={`badge ${statusBadgeClass(session.status)}`}>{statusLabel(session.status)}</span></dd>
                   <dt>Total Scores</dt><dd>{scores.length}</dd>
                   <dt>Prescriptions</dt><dd>{prescriptions.length}</dd>
                 </dl>
@@ -296,14 +325,52 @@ export function SessionDetailPage() {
             </div>
           )}
 
-          {session.status === 'completed' && (
+          {isPostCompletion && (
             <div className="export-buttons">
               <button className="btn-secondary" onClick={() => handleExport('pdf')}>📄 Download PDF Report</button>
               <button className="btn-secondary" onClick={() => handleExport('json')}>📋 Export JSON</button>
             </div>
           )}
 
-          {session.status === 'completed' && sessionVideos.length > 0 && (
+          {session.status === 'completed' && (
+            <div className="complete-section">
+              <p>The screening is complete. You can request a consultation with a clinician to discuss the results, or archive it if no further follow-up is needed.</p>
+              <div className="wizard-nav" style={{ gap: '0.5rem' }}>
+                <button className="btn-primary" onClick={handleRequestConsultation} style={{ width: 'auto' }}>
+                  💬 Request Consultation
+                </button>
+                <button className="btn-secondary" onClick={handleArchive} style={{ width: 'auto' }}>
+                  🗄 Archive
+                </button>
+              </div>
+            </div>
+          )}
+
+          {session.status === 'consultation_requested' && (
+            <div className="review-banner info-card" style={{ borderColor: '#1d4ed8' }}>
+              <h3>💬 Consultation requested</h3>
+              <p className="text-muted">
+                A consultation has been requested for this screening. A clinician will follow up.
+                {canManage
+                  ? ' Once resolved, archive it below.'
+                  : ' A clinician or admin will archive it once resolved.'}
+              </p>
+              {canManage && (
+                <button className="btn-secondary" onClick={handleArchive} style={{ width: 'auto' }}>
+                  🗄 Archive
+                </button>
+              )}
+            </div>
+          )}
+
+          {session.status === 'archived' && (
+            <div className="review-banner info-card" style={{ borderColor: '#94a3b8' }}>
+              <h3>🗄 Archived</h3>
+              <p className="text-muted">This screening has been archived. No further follow-up is requested.</p>
+            </div>
+          )}
+
+          {session.status !== 'in_progress' && sessionVideos.length > 0 && (
             <div className="section">
               <h3>Recorded Videos</h3>
               <div className="video-grid">
@@ -321,15 +388,31 @@ export function SessionDetailPage() {
             </div>
           )}
 
-          {session.status !== 'completed' && (
+          {session.status === 'in_progress' && (
             <div className="complete-section">
-              <p>You have recorded <strong>{scores.length}</strong> score(s). Click below to calculate the risk score and generate exercise prescriptions.</p>
+              <p>You have recorded <strong>{scores.length}</strong> score(s). Click below to calculate the risk score. The screening will then be flagged for review, where a clinician selects the exercises to prescribe.</p>
               <button className="btn-primary" onClick={handleComplete} style={{ width: 'auto' }}>
-                ✓ Complete Session & Calculate Risk
+                ✓ Score Screening & Calculate Risk
               </button>
               <div className="wizard-nav" style={{ marginTop: '1rem' }}>
                 <button className="btn-secondary" onClick={() => goToStep(3)}>← Back to Hop Testing</button>
               </div>
+            </div>
+          )}
+
+          {session.status === 'needs_review' && (
+            <div className="review-banner info-card" style={{ borderColor: '#f59e0b' }}>
+              <h3>🔎 This screening needs review</h3>
+              <p className="text-muted">
+                The screening has been scored. {canManage
+                  ? 'Review the results and select the exercises to prescribe below, then finalize the review.'
+                  : 'A clinician will review the results and select the exercises to prescribe.'}
+              </p>
+              {canManage && (
+                <button className="btn-primary" onClick={handleFinalize} style={{ width: 'auto' }}>
+                  ✓ Finalize Review
+                </button>
+              )}
             </div>
           )}
 
@@ -360,7 +443,12 @@ export function SessionDetailPage() {
           {/* Exercise Prescriptions */}
           <div className="section">
             <div className="page-header">
-              <h3>Exercise Prescriptions</h3>
+              <div>
+                <h3>Exercise Prescriptions</h3>
+                {canManage && !isPostCompletion && (
+                  <p className="text-muted">Select the exercises to prescribe based on this screening's results.</p>
+                )}
+              </div>
               {canManage && !addingRx && (
                 <button className="btn-primary" onClick={() => setAddingRx(true)} style={{ width: 'auto' }}>+ Add Prescription</button>
               )}

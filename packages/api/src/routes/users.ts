@@ -120,7 +120,7 @@ statsRouter.get('/', async (req, res: Response) => {
 
   const isRestricted = role === 'coach' || role === 'parent';
 
-  const [users, clinics, clubs, teams, athletes, sessions, completedSessions] = await Promise.all([
+  const [users, clinics, clubs, teams, athletes, sessions, completedSessions, needsReview] = await Promise.all([
     isRestricted ? Promise.resolve(0) : prisma.user.count(),
     isRestricted ? Promise.resolve(0) : prisma.clinic.count(),
     prisma.club.count({ where: clubFilter }),
@@ -128,6 +128,7 @@ statsRouter.get('/', async (req, res: Response) => {
     prisma.athlete.count({ where: athleteFilter }),
     prisma.screeningSession.count({ where: sessionFilter }),
     prisma.screeningSession.count({ where: { ...sessionFilter, status: 'completed' } }),
+    prisma.screeningSession.count({ where: { ...sessionFilter, status: { in: ['needs_review', 'consultation_requested'] } } }),
   ]);
 
   const riskDistribution = await prisma.screeningSession.groupBy({
@@ -138,14 +139,23 @@ statsRouter.get('/', async (req, res: Response) => {
 
   const recentSessions = await prisma.screeningSession.findMany({
     take: 10,
-    where: sessionFilter,
+    where: { ...sessionFilter, status: { not: 'archived' } },
+    orderBy: { date: 'desc' },
+    include: { athlete: true, team: true },
+  });
+
+  // Screenings that need clinician attention: scored and awaiting review + exercise
+  // selection, or completed screenings where the athlete has requested a consultation.
+  const reviewSessions = await prisma.screeningSession.findMany({
+    where: { ...sessionFilter, status: { in: ['needs_review', 'consultation_requested'] } },
     orderBy: { date: 'desc' },
     include: { athlete: true, team: true },
   });
 
   res.json({
-    counts: { users, clinics, clubs, teams, athletes, sessions, completedSessions },
+    counts: { users, clinics, clubs, teams, athletes, sessions, completedSessions, needsReview },
     riskDistribution: riskDistribution.map((r) => ({ category: r.riskCategory, count: r._count })),
     recentSessions,
+    reviewSessions,
   });
 });

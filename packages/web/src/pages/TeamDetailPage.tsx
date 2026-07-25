@@ -29,7 +29,7 @@ export function TeamDetailPage() {
   const handleDelete = async () => {
     if (!confirm('Delete this team and all its athletes?')) return;
     await api.delete(`/teams/${id}`);
-    navigate('/teams');
+    navigate('/settings/teams');
   };
 
   const handleAddAthlete = async () => {
@@ -46,7 +46,7 @@ export function TeamDetailPage() {
   return (
     <div>
       <div className="breadcrumb">
-        <Link to="/clubs">Clubs</Link> / <Link to={`/clubs/${team.club?.id}`}>{team.club?.name}</Link> / {team.name}
+        <Link to="/settings/clubs">Clubs</Link> / <Link to={`/clubs/${team.club?.id}`}>{team.club?.name}</Link> / {team.name}
       </div>
 
       <div className="detail-header">

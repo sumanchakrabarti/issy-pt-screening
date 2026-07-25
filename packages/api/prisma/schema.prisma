@@ -77,7 +77,7 @@ model ScreeningSession {
   teamId                String
   team                  Team                   @relation(fields: [teamId], references: [id])
   date                  DateTime               @default(now())
-  status                String                 @default("in_progress") // in_progress, completed
+  status                String                 @default("in_progress") // in_progress, needs_review, completed, consultation_requested, archived
   riskScore             Float?
   riskCategory          String?                // low, moderate, high, very_high
   notes                 String?

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { API_BASE } from '../config';
 import type { ScreeningSession, Athlete, Team } from '../types';
+import { statusLabel, statusBadgeClass } from '../services/sessionStatus';
 
 export function SessionsPage() {
   const [sessions, setSessions] = useState<ScreeningSession[]>([]);
@@ -89,7 +90,7 @@ export function SessionsPage() {
               </td>
               <td>{s.team?.name || '—'}</td>
               <td>{new Date(s.date).toLocaleDateString()}</td>
-              <td>{s.status}</td>
+              <td><span className={`badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span></td>
               <td>{riskBadge(s.riskCategory, s.riskScore)}</td>
             </tr>
           ))}
