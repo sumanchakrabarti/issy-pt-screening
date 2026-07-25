@@ -5,18 +5,29 @@ import { API_BASE } from '../config';
 import type { ScreeningSession, Athlete, Team } from '../types';
 import { statusLabel, statusBadgeClass } from '../services/sessionStatus';
 
+const STATUS_FILTERS = ['in_progress', 'needs_review', 'completed', 'consultation_requested', 'archived'] as const;
+
 export function SessionsPage() {
   const [sessions, setSessions] = useState<ScreeningSession[]>([]);
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ athleteId: '', teamId: '', notes: '' });
+  // 'active' shows everything except archived (default); 'all' shows everything;
+  // otherwise a specific status value.
+  const [statusFilter, setStatusFilter] = useState<string>('active');
 
   useEffect(() => {
     api.get<ScreeningSession[]>('/sessions').then(setSessions);
     api.get<Athlete[]>('/athletes').then(setAthletes);
     api.get<Team[]>('/teams').then(setTeams);
   }, []);
+
+  const visibleSessions = sessions.filter((s) => {
+    if (statusFilter === 'active') return s.status !== 'archived';
+    if (statusFilter === 'all') return true;
+    return s.status === statusFilter;
+  });
 
   const handleCreate = async () => {
     if (!form.athleteId || !form.teamId) return;
@@ -55,6 +66,16 @@ export function SessionsPage() {
       <div className="page-header">
         <h1>Screening Sessions</h1>
         <div className="page-header-actions">
+          <label className="status-filter">
+            <span className="status-filter-label">Status</span>
+            <select className="status-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="active">Active (excludes archived)</option>
+              <option value="all">All statuses</option>
+              {STATUS_FILTERS.map((s) => (
+                <option key={s} value={s}>{statusLabel(s)}</option>
+              ))}
+            </select>
+          </label>
           <button className="btn-secondary" onClick={handleExportCSV}>📥 Export CSV</button>
           <button className="btn-primary" onClick={() => setShowForm(!showForm)}>+ New Session</button>
         </div>
@@ -81,7 +102,9 @@ export function SessionsPage() {
       <table className="data-table">
         <thead><tr><th>Athlete</th><th>Team</th><th>Date</th><th>Status</th><th>Risk</th></tr></thead>
         <tbody>
-          {sessions.map((s) => (
+          {visibleSessions.length === 0 ? (
+            <tr><td colSpan={5} className="empty-state">No screenings match this filter.</td></tr>
+          ) : visibleSessions.map((s) => (
             <tr key={s.id}>
               <td>
                 <Link to={`/sessions/${s.id}`}>
