@@ -40,72 +40,82 @@ export function DashboardPage() {
   if (!stats) return <div className="loading">Loading...</div>;
 
   const { counts, riskDistribution, recentSessions } = stats;
+  const screeningsByDay = Array.from({ length: 7 }, (_, offset) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - offset));
+    const key = date.toDateString();
+    const count = recentSessions.filter((session) => new Date(session.date).toDateString() === key).length;
+    return {
+      label: date.toLocaleDateString([], { weekday: 'short' }),
+      count,
+    };
+  });
+  const screeningsLastWeek = screeningsByDay.reduce((total, day) => total + day.count, 0);
+  const maxDailyScreenings = Math.max(...screeningsByDay.map((day) => day.count), 1);
 
   return (
     <div className="dashboard">
       <h1>Welcome, {user?.firstName}!</h1>
+      <p className="dashboard-intro">A quick view of current risk patterns and recent screening activity.</p>
 
-      <div className="stats-grid">
-        <Link to="/clubs" className="stat-card">
-          <div className="stat-number">{counts.clubs}</div>
-          <div className="stat-label">Clubs</div>
-        </Link>
-        <Link to="/teams" className="stat-card">
-          <div className="stat-number">{counts.teams}</div>
-          <div className="stat-label">Teams</div>
-        </Link>
-        <Link to="/athletes" className="stat-card">
-          <div className="stat-number">{counts.athletes}</div>
-          <div className="stat-label">Athletes</div>
-        </Link>
-        <Link to="/sessions" className="stat-card">
-          <div className="stat-number">{counts.sessions}</div>
-          <div className="stat-label">Screenings</div>
-        </Link>
-      </div>
+      <div className="dashboard-panels">
+        <div className="dashboard-panel">
+          <div className="dashboard-panel-header">
+            <div>
+              <h2>Risk Distribution</h2>
+              <p className="dashboard-panel-subtitle">Completed screenings by risk category.</p>
+            </div>
+            <span className="dashboard-panel-pill">{counts.completedSessions} completed</span>
+          </div>
+          {riskDistribution.length > 0 ? (
+            <div className="risk-bar-chart">
+              {riskDistribution.map((r) => (
+                <div key={r.category} className="risk-bar-row">
+                  <span className="risk-bar-label" style={{ color: riskColor(r.category) }}>
+                    {riskLabel(r.category || 'unknown')}
+                  </span>
+                  <div className="risk-bar-track">
+                    <div
+                      className="risk-bar-fill"
+                      style={{
+                        width: `${Math.max((r.count / counts.completedSessions) * 100, 8)}%`,
+                        backgroundColor: riskColor(r.category),
+                      }}
+                    />
+                  </div>
+                  <span className="risk-bar-count">{r.count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">No completed screenings yet.</p>
+          )}
+        </div>
 
-      {/* Risk Distribution */}
-      {riskDistribution.length > 0 && (
-        <div className="section">
-          <h2>Risk Distribution</h2>
-          <div className="risk-bar-chart">
-            {riskDistribution.map((r) => (
-              <div key={r.category} className="risk-bar-row">
-                <span className="risk-bar-label" style={{ color: riskColor(r.category) }}>
-                  {riskLabel(r.category || 'unknown')}
-                </span>
-                <div className="risk-bar-track">
+        <div className="dashboard-panel">
+          <div className="dashboard-panel-header">
+            <div>
+              <h2>New Screenings</h2>
+              <p className="dashboard-panel-subtitle">The last 7 days of activity.</p>
+            </div>
+            <span className="dashboard-panel-pill">{screeningsLastWeek} total</span>
+          </div>
+          <div className="weekly-chart" aria-label="New screenings in the last seven days">
+            {screeningsByDay.map((day) => (
+              <div key={day.label} className="weekly-chart-bar-group">
+                <div className="weekly-chart-bar-track">
                   <div
-                    className="risk-bar-fill"
-                    style={{
-                      width: `${Math.max((r.count / counts.completedSessions) * 100, 8)}%`,
-                      backgroundColor: riskColor(r.category),
-                    }}
+                    className="weekly-chart-bar-fill"
+                    style={{ height: `${Math.max((day.count / maxDailyScreenings) * 100, day.count > 0 ? 12 : 4)}%` }}
                   />
                 </div>
-                <span className="risk-bar-count">{r.count}</span>
+                <span className="weekly-chart-bar-count">{day.count}</span>
+                <span className="weekly-chart-bar-label">{day.label}</span>
               </div>
             ))}
           </div>
         </div>
-      )}
-
-      {/* Admin quick links */}
-      {user?.role === 'admin' && (
-        <div className="section">
-          <h2>Administration</h2>
-          <div className="stats-grid">
-            <Link to="/admin/users" className="stat-card">
-              <div className="stat-number">{counts.users}</div>
-              <div className="stat-label">Users</div>
-            </Link>
-            <Link to="/admin/clinics" className="stat-card">
-              <div className="stat-number">{counts.clinics}</div>
-              <div className="stat-label">Clinics</div>
-            </Link>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Recent Screenings */}
       <div className="section">

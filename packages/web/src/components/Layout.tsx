@@ -40,23 +40,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ) : (
               <>
                 <Link to="/" className={location.pathname === '/' ? 'active' : ''} onClick={handleNavClick}>Dashboard</Link>
-                <Link to="/clubs" className={location.pathname.startsWith('/clubs') ? 'active' : ''} onClick={handleNavClick}>Clubs</Link>
-                <Link to="/teams" className={location.pathname.startsWith('/teams') ? 'active' : ''} onClick={handleNavClick}>Teams</Link>
                 <Link to="/athletes" className={location.pathname.startsWith('/athletes') ? 'active' : ''} onClick={handleNavClick}>Athletes</Link>
                 <Link to="/sessions" className={location.pathname.startsWith('/sessions') ? 'active' : ''} onClick={handleNavClick}>Sessions</Link>
-                <Link to="/exercises" className={location.pathname === '/exercises' ? 'active' : ''} onClick={handleNavClick}>Exercises</Link>
                 {(user.role === 'admin' || user.role === 'clinician') && (
-                  <>
-                    <Link to="/exercises/muscle-groups" className={location.pathname === '/exercises/muscle-groups' ? 'active' : ''} onClick={handleNavClick}>Muscle Groups</Link>
-                    <Link to="/exercises/ligament-groups" className={location.pathname === '/exercises/ligament-groups' ? 'active' : ''} onClick={handleNavClick}>Ligament Groups</Link>
-                  </>
-                )}
-                {user.role === 'admin' && (
-                  <>
-                    <div className="nav-divider" />
-                    <Link to="/admin/users" className={location.pathname === '/admin/users' ? 'active' : ''} onClick={handleNavClick}>Users</Link>
-                    <Link to="/admin/clinics" className={location.pathname === '/admin/clinics' ? 'active' : ''} onClick={handleNavClick}>Clinics</Link>
-                  </>
+                  <Link to="/settings" className={location.pathname.startsWith('/settings') ? 'active' : ''} onClick={handleNavClick}>Settings</Link>
                 )}
               </>
             )}
