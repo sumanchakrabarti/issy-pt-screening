@@ -17,6 +17,8 @@ import { ClinicsPage } from './pages/ClinicsPage';
 import { ExercisesPage } from './pages/ExercisesPage';
 import { MuscleGroupsPage } from './pages/MuscleGroupsPage';
 import { LigamentGroupsPage } from './pages/LigamentGroupsPage';
+import { SettingsLayout } from './components/SettingsLayout';
+import { SettingsHomePage } from './pages/SettingsHomePage';
 import './App.css';
 
 function App() {
@@ -40,6 +42,16 @@ function App() {
             <Route path="/exercises/ligament-groups" element={<ProtectedRoute><LigamentGroupsPage /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
             <Route path="/admin/clinics" element={<ProtectedRoute><ClinicsPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsLayout /></ProtectedRoute>}>
+              <Route index element={<SettingsHomePage />} />
+              <Route path="clubs" element={<ClubsPage />} />
+              <Route path="teams" element={<TeamsPage />} />
+              <Route path="exercises" element={<ExercisesPage />} />
+              <Route path="muscle-groups" element={<MuscleGroupsPage />} />
+              <Route path="ligament-groups" element={<LigamentGroupsPage />} />
+              <Route path="clinics" element={<ClinicsPage />} />
+              <Route path="users" element={<UsersPage />} />
+            </Route>
           </Routes>
         </Layout>
       </AuthProvider>
