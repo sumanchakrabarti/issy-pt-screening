@@ -11,6 +11,8 @@ import { userRouter, statsRouter } from './routes/users';
 import { relationRouter } from './routes/relations';
 import { videoRouter } from './routes/videos';
 import { exerciseRouter } from './routes/exercises';
+import { muscleGroupRouter } from './routes/muscleGroups';
+import { ligamentGroupRouter } from './routes/ligamentGroups';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -35,6 +37,8 @@ app.use('/api/users', userRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/relations', relationRouter);
 app.use('/api/exercises', exerciseRouter);
+app.use('/api/muscle-groups', muscleGroupRouter);
+app.use('/api/ligament-groups', ligamentGroupRouter);
 app.use('/api', videoRouter);
 
 app.listen(PORT, () => {

@@ -1,7 +1,27 @@
 import { ScoreRecord } from '@prisma/client';
 
+// Catalog taxonomy — kept in sync with the `Exercise` model in schema.prisma.
+type ExerciseCategory =
+  | 'strengthening'
+  | 'balance'
+  | 'plyometric'
+  | 'mobility'
+  | 'stretching'
+  | 'proprioception';
+type BodyRegion = 'lower_leg' | 'ankle' | 'foot' | 'knee' | 'hip' | 'thigh';
+type Difficulty = 'beginner' | 'intermediate' | 'advanced';
+
+/** Catalog metadata for a prescribed exercise. Mirrors the `Exercise` model
+ *  so an unseeded exercise can be upserted into the catalog with correct tags. */
+interface PrescribedExerciseCatalog {
+  name: string;
+  category: ExerciseCategory;
+  bodyRegion: BodyRegion;
+  difficulty: Difficulty;
+}
+
 interface PrescribedExercise {
-  exerciseName: string;
+  exercise: PrescribedExerciseCatalog;
   sets: number;
   reps: number;
   duration?: string;
@@ -58,17 +78,17 @@ export function generatePrescription(
   // If no specific deficits but moderate+ risk, add general prevention
   if (exercises.length === 0 && riskCategory !== 'low') {
     exercises.push(
-      { exerciseName: 'Single Leg Balance', sets: 3, reps: 1, duration: '30 seconds each side', notes: 'General ACL prevention' },
-      { exerciseName: 'Nordic Hamstring Curl', sets: 3, reps: 6, notes: 'Eccentric hamstring strengthening' },
-      { exerciseName: 'Lateral Band Walk', sets: 3, reps: 15, notes: 'Hip abductor activation' },
+      { exercise: { name: 'Single Leg Balance', category: 'proprioception', bodyRegion: 'ankle', difficulty: 'beginner' }, sets: 3, reps: 1, duration: '30 seconds each side', notes: 'General ACL prevention' },
+      { exercise: { name: 'Nordic Hamstring Curl', category: 'strengthening', bodyRegion: 'thigh', difficulty: 'advanced' }, sets: 3, reps: 6, notes: 'Eccentric hamstring strengthening' },
+      { exercise: { name: 'Lateral Band Walk', category: 'strengthening', bodyRegion: 'hip', difficulty: 'beginner' }, sets: 3, reps: 15, notes: 'Hip abductor activation' },
     );
   }
 
   // Deduplicate by exercise name
   const seen = new Set<string>();
   return exercises.filter((e) => {
-    if (seen.has(e.exerciseName)) return false;
-    seen.add(e.exerciseName);
+    if (seen.has(e.exercise.name)) return false;
+    seen.add(e.exercise.name);
     return true;
   });
 }
@@ -88,24 +108,24 @@ function getMovementExercises(testName: string, risk: string): PrescribedExercis
 
   if (nameL.includes('squat')) {
     return [
-      { exerciseName: 'Goblet Squat', sets, reps, notes: 'Focus on knee tracking over toes' },
-      { exerciseName: 'Single Leg Squat to Box', sets, reps: Math.floor(reps * 0.6), notes: 'Control valgus collapse' },
+      { exercise: { name: 'Goblet Squat', category: 'strengthening', bodyRegion: 'thigh', difficulty: 'beginner' }, sets, reps, notes: 'Focus on knee tracking over toes' },
+      { exercise: { name: 'Single Leg Squat to Box', category: 'strengthening', bodyRegion: 'thigh', difficulty: 'intermediate' }, sets, reps: Math.floor(reps * 0.6), notes: 'Control valgus collapse' },
     ];
   }
   if (nameL.includes('lunge') || nameL.includes('step')) {
     return [
-      { exerciseName: 'Forward Lunge with Pause', sets, reps, notes: 'Hold 2s at bottom, maintain alignment' },
-      { exerciseName: 'Lateral Lunge', sets, reps, notes: 'Hip hinge emphasis' },
+      { exercise: { name: 'Forward Lunge with Pause', category: 'strengthening', bodyRegion: 'thigh', difficulty: 'beginner' }, sets, reps, notes: 'Hold 2s at bottom, maintain alignment' },
+      { exercise: { name: 'Lateral Lunge', category: 'strengthening', bodyRegion: 'hip', difficulty: 'beginner' }, sets, reps, notes: 'Hip hinge emphasis' },
     ];
   }
   if (nameL.includes('jump') || nameL.includes('land') || nameL.includes('drop')) {
     return [
-      { exerciseName: 'Box Drop Landing', sets, reps: Math.floor(reps * 0.5), notes: 'Soft landing, knees aligned' },
-      { exerciseName: 'Single Leg Hop and Stick', sets, reps: 6, notes: 'Stick landing for 3 seconds' },
+      { exercise: { name: 'Box Drop Landing', category: 'plyometric', bodyRegion: 'knee', difficulty: 'intermediate' }, sets, reps: Math.floor(reps * 0.5), notes: 'Soft landing, knees aligned' },
+      { exercise: { name: 'Single Leg Hop and Stick', category: 'plyometric', bodyRegion: 'knee', difficulty: 'advanced' }, sets, reps: 6, notes: 'Stick landing for 3 seconds' },
     ];
   }
   return [
-    { exerciseName: 'Single Leg Balance on Unstable Surface', sets, reps: 1, duration: '30 seconds each side', notes: `Address deficit in: ${testName}` },
+    { exercise: { name: 'Single Leg Balance on Unstable Surface', category: 'proprioception', bodyRegion: 'ankle', difficulty: 'beginner' }, sets, reps: 1, duration: '30 seconds each side', notes: `Address deficit in: ${testName}` },
   ];
 }
 
@@ -115,31 +135,31 @@ function getStrengthExercises(testName: string, risk: string): PrescribedExercis
 
   if (nameL.includes('quad')) {
     return [
-      { exerciseName: 'Single Leg Press', sets, reps, notes: 'Focus on weaker side' },
-      { exerciseName: 'Terminal Knee Extension', sets, reps: 15, notes: 'Band resistance' },
+      { exercise: { name: 'Single Leg Press', category: 'strengthening', bodyRegion: 'thigh', difficulty: 'intermediate' }, sets, reps, notes: 'Focus on weaker side' },
+      { exercise: { name: 'Terminal Knee Extension', category: 'strengthening', bodyRegion: 'knee', difficulty: 'beginner' }, sets, reps: 15, notes: 'Band resistance' },
     ];
   }
   if (nameL.includes('hamstring') || nameL.includes('ham')) {
     return [
-      { exerciseName: 'Nordic Hamstring Curl', sets, reps: 6, notes: 'Eccentric control' },
-      { exerciseName: 'Single Leg Romanian Deadlift', sets, reps, notes: 'Hamstring and glute activation' },
+      { exercise: { name: 'Nordic Hamstring Curl', category: 'strengthening', bodyRegion: 'thigh', difficulty: 'advanced' }, sets, reps: 6, notes: 'Eccentric control' },
+      { exercise: { name: 'Single Leg Romanian Deadlift', category: 'strengthening', bodyRegion: 'thigh', difficulty: 'intermediate' }, sets, reps, notes: 'Hamstring and glute activation' },
     ];
   }
   if (nameL.includes('hip') || nameL.includes('glute')) {
     return [
-      { exerciseName: 'Clamshell with Band', sets, reps: 15, notes: 'External rotation strengthening' },
-      { exerciseName: 'Side-Lying Hip Abduction', sets, reps: 15, notes: 'Focus on weaker side' },
+      { exercise: { name: 'Clamshell with Band', category: 'strengthening', bodyRegion: 'hip', difficulty: 'beginner' }, sets, reps: 15, notes: 'External rotation strengthening' },
+      { exercise: { name: 'Side-Lying Hip Abduction', category: 'strengthening', bodyRegion: 'hip', difficulty: 'beginner' }, sets, reps: 15, notes: 'Focus on weaker side' },
     ];
   }
   return [
-    { exerciseName: 'Single Leg Strength Exercise', sets, reps, notes: `Address asymmetry in: ${testName}` },
+    { exercise: { name: 'Single Leg Strength Exercise', category: 'strengthening', bodyRegion: 'thigh', difficulty: 'beginner' }, sets, reps, notes: `Address asymmetry in: ${testName}` },
   ];
 }
 
 function getHopExercises(testName: string, risk: string): PrescribedExercise[] {
   const { sets } = intensityForRisk(risk);
   return [
-    { exerciseName: 'Single Leg Hop Progression', sets, reps: 8, notes: `Asymmetry detected in: ${testName}. Start with small hops, progress distance.` },
-    { exerciseName: 'Lateral Bound and Stick', sets, reps: 6, notes: 'Control landing, stick for 3s' },
+    { exercise: { name: 'Single Leg Hop Progression', category: 'plyometric', bodyRegion: 'knee', difficulty: 'intermediate' }, sets, reps: 8, notes: `Asymmetry detected in: ${testName}. Start with small hops, progress distance.` },
+    { exercise: { name: 'Lateral Bound and Stick', category: 'plyometric', bodyRegion: 'knee', difficulty: 'advanced' }, sets, reps: 6, notes: 'Control landing, stick for 3s' },
   ];
 }

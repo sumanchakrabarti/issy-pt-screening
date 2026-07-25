@@ -1,0 +1,44 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build: All",
+      "detail": "Build the API and Web packages",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Build: API", "Build: Web"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build: API",
+      "detail": "Compile the API package (tsc)",
+      "type": "npm",
+      "script": "api:build",
+      "path": "",
+      "group": "build",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "build"
+      }
+    },
+    {
+      "label": "Build: Web",
+      "detail": "Type-check and bundle the Web package (tsc + vite build)",
+      "type": "npm",
+      "script": "web:build",
+      "path": "",
+      "group": "build",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "build"
+      }
+    }
+  ]
+}

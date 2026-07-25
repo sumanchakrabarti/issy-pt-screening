@@ -46,6 +46,10 @@
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.9rem; }
 .form-group input { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }
+.form-group select, .form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+.tag-checkboxes { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.tag-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; font-weight: 400; }
+.tag-checkbox input { width: auto; }
 .error-msg { background: #fef2f2; color: #dc2626; padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem; }
 
 /* Buttons */

@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db';
 import { param } from '../middleware/params';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { calculateRisk } from '../services/riskCalculation';
 import { generatePrescription } from '../services/exercisePrescription';
 
@@ -22,6 +22,23 @@ const scoreSchema = z.object({
   valueRight: z.number().optional(),
   score: z.number().optional(),
   notes: z.string().optional(),
+});
+
+const prescriptionSchema = z.object({
+  exerciseId: z.string().min(1),
+  sets: z.number().int().optional(),
+  reps: z.number().int().optional(),
+  duration: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+// Partial schema for updates — every field optional, exerciseId cannot be blanked.
+const prescriptionUpdateSchema = z.object({
+  exerciseId: z.string().min(1).optional(),
+  sets: z.number().int().nullable().optional(),
+  reps: z.number().int().nullable().optional(),
+  duration: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
 });
 
 // List sessions
@@ -103,35 +120,38 @@ sessionRouter.post('/:id/complete', async (req, res: Response) => {
 
     const { riskScore, riskCategory } = calculateRisk(session.scoreRecords);
 
-    // Generate exercise prescriptions based on scores
-    const prescribedExercises = generatePrescription(session.scoreRecords, riskCategory);
-
-    // Delete any existing prescriptions and create new ones
-    await prisma.exercisePrescription.deleteMany({ where: { sessionId } });
-    for (const ex of prescribedExercises) {
-      // Resolve the generated exercise to a catalog entry. Upsert acts as a
-      // safety net so completion never fails if a name isn't seeded yet.
-      const exercise = await prisma.exercise.upsert({
-        where: { name: ex.exerciseName },
-        update: {},
-        create: {
-          name: ex.exerciseName,
-          category: 'strengthening',
-          defaultSets: ex.sets,
-          defaultReps: ex.reps,
-          defaultDuration: ex.duration,
-        },
-      });
-      await prisma.exercisePrescription.create({
-        data: {
-          sessionId,
-          exerciseId: exercise.id,
-          sets: ex.sets,
-          reps: ex.reps,
-          duration: ex.duration,
-          notes: ex.notes,
-        },
-      });
+    // Only auto-generate prescriptions if the session has none yet, so that
+    // manual edits made by a clinician are never overwritten on re-completion.
+    const existingCount = await prisma.exercisePrescription.count({ where: { sessionId } });
+    if (existingCount === 0) {
+      const prescribedExercises = generatePrescription(session.scoreRecords, riskCategory);
+      for (const ex of prescribedExercises) {
+        // Resolve the generated exercise to a catalog entry. Upsert acts as a
+        // safety net so completion never fails if a name isn't seeded yet.
+        const exercise = await prisma.exercise.upsert({
+          where: { name: ex.exercise.name },
+          update: {},
+          create: {
+            name: ex.exercise.name,
+            category: ex.exercise.category,
+            bodyRegion: ex.exercise.bodyRegion,
+            difficulty: ex.exercise.difficulty,
+            defaultSets: ex.sets,
+            defaultReps: ex.reps,
+            defaultDuration: ex.duration,
+          },
+        });
+        await prisma.exercisePrescription.create({
+          data: {
+            sessionId,
+            exerciseId: exercise.id,
+            sets: ex.sets,
+            reps: ex.reps,
+            duration: ex.duration,
+            notes: ex.notes,
+          },
+        });
+      }
     }
 
     const updated = await prisma.screeningSession.update({
@@ -148,6 +168,67 @@ sessionRouter.post('/:id/complete', async (req, res: Response) => {
     console.error('Complete session error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Per-session exercise prescriptions (manual management by clinicians/admins).
+// ---------------------------------------------------------------------------
+
+// Add a prescription to a session.
+sessionRouter.post('/:id/prescriptions', requireRole('admin', 'clinician'), async (req: AuthRequest, res: Response) => {
+  try {
+    const sessionId = param(req, 'id');
+    const data = prescriptionSchema.parse(req.body);
+    const exercise = await prisma.exercise.findUnique({ where: { id: data.exerciseId } });
+    if (!exercise) { res.status(400).json({ error: 'Exercise not found' }); return; }
+    const prescription = await prisma.exercisePrescription.create({
+      data: { ...data, sessionId },
+      include: { exercise: true },
+    });
+    res.status(201).json(prescription);
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a prescription on a session.
+sessionRouter.put('/:id/prescriptions/:pid', requireRole('admin', 'clinician'), async (req: AuthRequest, res: Response) => {
+  try {
+    const sessionId = param(req, 'id');
+    const pid = param(req, 'pid');
+    const data = prescriptionUpdateSchema.parse(req.body);
+
+    const existing = await prisma.exercisePrescription.findUnique({ where: { id: pid } });
+    if (!existing || existing.sessionId !== sessionId) {
+      res.status(404).json({ error: 'Prescription not found' }); return;
+    }
+    if (data.exerciseId) {
+      const exercise = await prisma.exercise.findUnique({ where: { id: data.exerciseId } });
+      if (!exercise) { res.status(400).json({ error: 'Exercise not found' }); return; }
+    }
+    const prescription = await prisma.exercisePrescription.update({
+      where: { id: pid },
+      data,
+      include: { exercise: true },
+    });
+    res.json(prescription);
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: 'Validation failed', details: err.errors }); return; }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Remove a prescription from a session.
+sessionRouter.delete('/:id/prescriptions/:pid', requireRole('admin', 'clinician'), async (req, res: Response) => {
+  const sessionId = param(req, 'id');
+  const pid = param(req, 'pid');
+  const existing = await prisma.exercisePrescription.findUnique({ where: { id: pid } });
+  if (!existing || existing.sessionId !== sessionId) {
+    res.status(404).json({ error: 'Prescription not found' }); return;
+  }
+  await prisma.exercisePrescription.delete({ where: { id: pid } });
+  res.status(204).send();
 });
 
 // Delete session and related data

@@ -14,6 +14,9 @@ import { SessionsPage } from './pages/SessionsPage';
 import { SessionDetailPage } from './pages/SessionDetailPage';
 import { UsersPage } from './pages/UsersPage';
 import { ClinicsPage } from './pages/ClinicsPage';
+import { ExercisesPage } from './pages/ExercisesPage';
+import { MuscleGroupsPage } from './pages/MuscleGroupsPage';
+import { LigamentGroupsPage } from './pages/LigamentGroupsPage';
 import './App.css';
 
 function App() {
@@ -32,6 +35,9 @@ function App() {
             <Route path="/athletes/:id" element={<ProtectedRoute><AthleteDetailPage /></ProtectedRoute>} />
             <Route path="/sessions" element={<ProtectedRoute><SessionsPage /></ProtectedRoute>} />
             <Route path="/sessions/:id" element={<ProtectedRoute><SessionDetailPage /></ProtectedRoute>} />
+            <Route path="/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
+            <Route path="/exercises/muscle-groups" element={<ProtectedRoute><MuscleGroupsPage /></ProtectedRoute>} />
+            <Route path="/exercises/ligament-groups" element={<ProtectedRoute><LigamentGroupsPage /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
             <Route path="/admin/clinics" element={<ProtectedRoute><ClinicsPage /></ProtectedRoute>} />
           </Routes>

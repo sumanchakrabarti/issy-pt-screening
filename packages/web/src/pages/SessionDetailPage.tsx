@@ -2,16 +2,26 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { API_BASE } from '../config';
+import { useAuth } from '../hooks/useAuth';
 import { ScoringPanel } from '../components/ScoringPanel';
 import { VideoCapture } from '../components/VideoCapture';
 import { MOVEMENT_TESTS, STRENGTH_TESTS, HOP_TESTS, SCREENING_STEPS } from '../services/screeningTests';
-import type { ScreeningSession } from '../types';
+import type { ScreeningSession, Exercise, ExercisePrescription } from '../types';
 
 export function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canManage = user?.role === 'admin' || user?.role === 'clinician';
   const [session, setSession] = useState<ScreeningSession | null>(null);
   const [step, setStep] = useState(0);
+
+  // Per-session prescription editing state.
+  const [catalog, setCatalog] = useState<Exercise[]>([]);
+  const [addingRx, setAddingRx] = useState(false);
+  const [rxForm, setRxForm] = useState({ exerciseId: '', sets: '', reps: '', duration: '', notes: '' });
+  const [editingRxId, setEditingRxId] = useState<string | null>(null);
+  const [editRxForm, setEditRxForm] = useState({ exerciseId: '', sets: '', reps: '', duration: '', notes: '' });
 
   const goToStep = (s: number) => {
     setStep(s);
@@ -23,6 +33,10 @@ export function SessionDetailPage() {
     if (!id) return;
     loadSession();
   }, [id]);
+
+  useEffect(() => {
+    if (canManage) api.get<Exercise[]>('/exercises').then(setCatalog);
+  }, [canManage]);
 
   const loadSession = () => {
     api.get<ScreeningSession>(`/sessions/${id}`).then((s) => {
@@ -41,6 +55,35 @@ export function SessionDetailPage() {
     const updated = await api.post<ScreeningSession>(`/sessions/${id}/complete`, {});
     setSession(updated);
     setStep(4);
+  };
+
+  const rxPayload = (f: { exerciseId: string; sets: string; reps: string; duration: string; notes: string }) => ({
+    exerciseId: f.exerciseId,
+    sets: f.sets ? Number(f.sets) : undefined,
+    reps: f.reps ? Number(f.reps) : undefined,
+    duration: f.duration || undefined,
+    notes: f.notes || undefined,
+  });
+
+  const handleAddRx = async () => {
+    if (!id || !rxForm.exerciseId) return;
+    await api.post<ExercisePrescription>(`/sessions/${id}/prescriptions`, rxPayload(rxForm));
+    setRxForm({ exerciseId: '', sets: '', reps: '', duration: '', notes: '' });
+    setAddingRx(false);
+    loadSession();
+  };
+
+  const handleUpdateRx = async (pid: string) => {
+    if (!id) return;
+    await api.put<ExercisePrescription>(`/sessions/${id}/prescriptions/${pid}`, rxPayload(editRxForm));
+    setEditingRxId(null);
+    loadSession();
+  };
+
+  const handleDeleteRx = async (pid: string) => {
+    if (!id || !confirm('Remove this prescription?')) return;
+    await api.delete(`/sessions/${id}/prescriptions/${pid}`);
+    loadSession();
   };
 
   const handleDelete = async () => {
@@ -315,25 +358,93 @@ export function SessionDetailPage() {
           </div>
 
           {/* Exercise Prescriptions */}
-          {prescriptions.length > 0 && (
-            <div className="section">
+          <div className="section">
+            <div className="page-header">
               <h3>Exercise Prescriptions</h3>
+              {canManage && !addingRx && (
+                <button className="btn-primary" onClick={() => setAddingRx(true)} style={{ width: 'auto' }}>+ Add Prescription</button>
+              )}
+            </div>
+
+            {canManage && addingRx && (
+              <div className="edit-form">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Exercise</label>
+                    <select value={rxForm.exerciseId} onChange={(e) => setRxForm({ ...rxForm, exerciseId: e.target.value })}>
+                      <option value="">Select…</option>
+                      {catalog.map((ex) => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Sets</label>
+                    <input type="number" value={rxForm.sets} onChange={(e) => setRxForm({ ...rxForm, sets: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Reps</label>
+                    <input type="number" value={rxForm.reps} onChange={(e) => setRxForm({ ...rxForm, reps: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Duration</label>
+                    <input value={rxForm.duration} onChange={(e) => setRxForm({ ...rxForm, duration: e.target.value })} placeholder="e.g., 30 seconds" />
+                  </div>
+                  <div className="form-group">
+                    <label>Notes</label>
+                    <input value={rxForm.notes} onChange={(e) => setRxForm({ ...rxForm, notes: e.target.value })} />
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button className="btn-primary" onClick={handleAddRx}>Add</button>
+                  <button className="btn-secondary" onClick={() => { setAddingRx(false); setRxForm({ exerciseId: '', sets: '', reps: '', duration: '', notes: '' }); }}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {prescriptions.length === 0 ? (
+              <p className="empty-state">No prescriptions.</p>
+            ) : (
               <table className="data-table">
-                <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Duration</th><th>Notes</th></tr></thead>
+                <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Duration</th><th>Notes</th>{canManage && <th>Actions</th>}</tr></thead>
                 <tbody>
                   {prescriptions.map((p) => (
                     <tr key={p.id}>
-                      <td><strong>{p.exercise?.name ?? '—'}</strong></td>
-                      <td>{p.sets ?? '—'}</td>
-                      <td>{p.reps ?? '—'}</td>
-                      <td>{p.duration || '—'}</td>
-                      <td>{p.notes || '—'}</td>
+                      {editingRxId === p.id ? (
+                        <>
+                          <td>
+                            <select value={editRxForm.exerciseId} onChange={(e) => setEditRxForm({ ...editRxForm, exerciseId: e.target.value })}>
+                              {catalog.map((ex) => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
+                            </select>
+                          </td>
+                          <td><input type="number" value={editRxForm.sets} onChange={(e) => setEditRxForm({ ...editRxForm, sets: e.target.value })} /></td>
+                          <td><input type="number" value={editRxForm.reps} onChange={(e) => setEditRxForm({ ...editRxForm, reps: e.target.value })} /></td>
+                          <td><input value={editRxForm.duration} onChange={(e) => setEditRxForm({ ...editRxForm, duration: e.target.value })} /></td>
+                          <td><input value={editRxForm.notes} onChange={(e) => setEditRxForm({ ...editRxForm, notes: e.target.value })} /></td>
+                          <td>
+                            <button className="btn-primary" onClick={() => handleUpdateRx(p.id)} style={{ width: 'auto', fontSize: '0.8rem', padding: '0.2rem 0.5rem', marginRight: '0.25rem' }}>Save</button>
+                            <button className="btn-secondary" onClick={() => setEditingRxId(null)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>Cancel</button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td><strong>{p.exercise?.name ?? '—'}</strong></td>
+                          <td>{p.sets ?? '—'}</td>
+                          <td>{p.reps ?? '—'}</td>
+                          <td>{p.duration || '—'}</td>
+                          <td>{p.notes || '—'}</td>
+                          {canManage && (
+                            <td>
+                              <button className="btn-secondary" onClick={() => { setEditingRxId(p.id); setEditRxForm({ exerciseId: p.exerciseId, sets: p.sets != null ? String(p.sets) : '', reps: p.reps != null ? String(p.reps) : '', duration: p.duration || '', notes: p.notes || '' }); }} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', marginRight: '0.25rem' }}>Edit</button>
+                              <button className="btn-danger" onClick={() => handleDeleteRx(p.id)}>Delete</button>
+                            </td>
+                          )}
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
