@@ -1,0 +1,51 @@
+name: IPTScreening-ApiDeploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/api/**"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: IPTScreening-api
+  NODE_VERSION: "24.x"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies (workspace root)
+        run: npm ci
+
+      - name: Build API
+        run: npm run api:build
+
+      - name: Assemble standalone deploy package
+        run: |
+          set -e
+          mkdir -p deploy
+          cp -r packages/api/dist deploy/dist
+          cp -r packages/api/prisma deploy/prisma
+          cp packages/api/package.json deploy/package.json
+          cd deploy
+          # Install production dependencies only (self-contained; api has no workspace deps)
+          npm install --omit=dev --no-audit --no-fund
+          # Generate the Prisma client for the packaged node_modules
+          npx prisma generate
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+          package: deploy

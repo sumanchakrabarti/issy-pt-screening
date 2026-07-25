@@ -186,7 +186,7 @@ export function SessionDetailPage() {
                 viewType="front"
                 existingVideoUrl={
                   sessionVideos.find((v) => v.viewType === 'front')
-                    ? `http://localhost:3001/api/videos/${sessionVideos.find((v) => v.viewType === 'front')!.id}/stream`
+                    ? `${API_BASE}/videos/${sessionVideos.find((v) => v.viewType === 'front')!.id}/stream`
                     : undefined
                 }
                 onUploaded={loadVideos}
@@ -197,7 +197,7 @@ export function SessionDetailPage() {
                 viewType="side"
                 existingVideoUrl={
                   sessionVideos.find((v) => v.viewType === 'side')
-                    ? `http://localhost:3001/api/videos/${sessionVideos.find((v) => v.viewType === 'side')!.id}/stream`
+                    ? `${API_BASE}/videos/${sessionVideos.find((v) => v.viewType === 'side')!.id}/stream`
                     : undefined
                 }
                 onUploaded={loadVideos}
@@ -313,7 +313,7 @@ export function SessionDetailPage() {
                     label={v.viewType === 'front' ? 'Front View' : 'Side View'}
                     sessionId={id!}
                     viewType={v.viewType as 'front' | 'side'}
-                    existingVideoUrl={`http://localhost:3001/api/videos/${v.id}/stream`}
+                    existingVideoUrl={`${API_BASE}/videos/${v.id}/stream`}
                     disabled
                   />
                 ))}

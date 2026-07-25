@@ -40,3 +40,6 @@ packages/api/uploads/*
 # SQLite dev database
 packages/api/prisma/dev.db
 packages/api/prisma/dev.db-journal
+
+# Playwright MCP output
+.playwright-mcp/

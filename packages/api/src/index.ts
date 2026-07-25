@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { authRouter } from './routes/auth';
@@ -17,7 +18,20 @@ import { ligamentGroupRouter } from './routes/ligamentGroups';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+// In production (behind the Azure App Service reverse proxy) trust the first
+// proxy so req.protocol/secure and client IPs are correct.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// Allowed CORS origins come from the CORS_ORIGIN env var (comma-separated) in
+// production; fall back to the local Vite dev server otherwise.
+const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json());
 
 // Health check
@@ -41,8 +55,8 @@ app.use('/api/muscle-groups', muscleGroupRouter);
 app.use('/api/ligament-groups', ligamentGroupRouter);
 app.use('/api', videoRouter);
 
-app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`API server running on port ${PORT}`);
 });
 
 export default app;
